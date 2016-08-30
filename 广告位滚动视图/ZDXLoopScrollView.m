@@ -25,10 +25,13 @@
 {
     NSTimer *_autoScrollTimer; //定时器
     UITapGestureRecognizer *_tap; // 单击手势
+    CGFloat pageControlWidth;   // 分页指示器宽度
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (self = [super initWithFrame:frame]) {
+        self.backgroundColor = [UIColor colorWithRed:1.000 green:0.278 blue:1.000 alpha:1.000];
+//        self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         // 初始化UIScrollView
         _scrollView = [[UIScrollView alloc] initWithFrame:self.bounds];
         _scrollView.delegate = self;
@@ -36,12 +39,11 @@
         _scrollView.showsHorizontalScrollIndicator = NO;
         _scrollView.contentOffset = CGPointMake(CGRectGetWidth(self.bounds) * 2, 0);
         _scrollView.pagingEnabled = YES;
+        _scrollView.bounces = NO;
         [self addSubview:_scrollView];
         
         // 初始化UIPageControl
-        _pageControl = [[ZDXPageControl alloc] initWithFrame:CGRectMake(0, CGRectGetMaxY(self.bounds) - 40, CGRectGetWidth(self.bounds), 40)];
-        _pageControl.currentPageIndicatorTintColor = self.currentPageIndicatorTintColor;
-        _pageControl.pageIndicatorTintColor = self.pageIndicatorTintColor;
+        _pageControl = [[ZDXPageControl alloc] init];
         _pageControl.userInteractionEnabled = NO;
         _pageControl.backgroundColor = [UIColor clearColor];
         [self addSubview:_pageControl];
@@ -53,8 +55,14 @@
         [_scrollView addGestureRecognizer:_tap];
         
         _currentPage = 0;
+//        _mode = PageControlModeCenter;
     }
     return self;
+}
+
+- (instancetype)initWithFrame:(CGRect)frame pageControlMode:(PageControlMode)mode {
+    _mode = mode;
+    return [self initWithFrame:frame];
 }
 
 - (void)setDataSource:(id<ZDXLoopScrollViewDataSource>)dataSource {
@@ -81,6 +89,7 @@
 //    NSLog(@"当前页: %d", _currentPage);
     // 获取总页数
     _totalPage = [_dataSource numberOfItemsInLoopScrollView:self];
+    pageControlWidth = [_pageControl sizeForNumberOfPages:_totalPage].width;
     
     if (_totalPage <= 0) {
         // 无页面不展示
@@ -96,6 +105,23 @@
     }
     _pageControl.numberOfPages = _totalPage;
     [self setupData];
+    
+    CGRect frame = CGRectMake(0, CGRectGetMaxY(self.bounds) - 30.0f, pageControlWidth, 30.0f);
+    switch (self.mode) {
+        case PageControlModeCenter: {
+            frame.origin.x = (CGRectGetWidth(self.bounds) - pageControlWidth) / 2.0f;
+            break;
+        }
+        case PageControlModeLeft: {
+            frame.origin.x = 20.0f;
+            break;
+        }
+        case PageControlModeRight: {
+            frame.origin.x = CGRectGetWidth(self.bounds) - pageControlWidth - 20;
+            break;
+        }
+    }
+    self.pageControl.frame = frame;
 }
 
 // 装载数据
@@ -208,7 +234,7 @@
     float x = scrollView.contentOffset.x;
     float width = CGRectGetWidth(self.bounds);
     float toX = 0.0f;
-
+    
     if (x > 0) {
         toX = width;
     } else if (x > width) {
@@ -216,17 +242,26 @@
     } else if (x > width * 2) {
         toX = width * 3;
     }
-        
+    
     if (toX > 0.0f) {
         [_scrollView setContentOffset:CGPointMake(toX, 0)];
     }
 }
+
 
 #pragma mark - 点击广告事件
 - (void)handleSelectItem:(UIGestureRecognizer *)sender {
     if ([_delegate respondsToSelector:@selector(loopScrollView:didSelectItemAtIndex:)]) {
         [_delegate loopScrollView:self didSelectItemAtIndex:_currentPage];
     }
+}
+
+#pragma mark - drawRect
+- (void)drawRect:(CGRect)rect {
+    _scrollView.frame = rect;
+    _scrollView.contentSize = CGSizeMake(CGRectGetWidth(rect) * 3, CGRectGetHeight(rect));
+    _pageControl.currentPageIndicatorTintColor = self.currentPageIndicatorTintColor;
+    _pageControl.pageIndicatorTintColor = self.pageIndicatorTintColor;
 }
 
 @end
